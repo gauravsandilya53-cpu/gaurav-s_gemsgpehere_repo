@@ -1,5 +1,5 @@
 /**
- * Â© GemSphere Technologies Private Limited. All rights reserved.
+ * © GemSphere Technologies Private Limited. All rights reserved.
  * This code is the intellectual property of GemSphere Technologies Private Limited.
  * Unauthorized copying, distribution, or usage is strictly prohibited.
  */
@@ -12,42 +12,50 @@ export const SyncService = {
   init: () => {
     NetInfo.addEventListener((state) => {
       if (state.isConnected) {
-        console.log('Device is online, triggering sync...');
-        SyncService.syncAll();
+        console.log('Device is online, triggering background sync...');
+        // Fire-and-forget — don't block UI
+        SyncService.syncAll().catch((e) =>
+          console.warn('Background sync failed silently:', e)
+        );
       }
     });
   },
 
   syncAll: async () => {
     await SyncService.syncInvoices();
-    // Add other entities here (e.g., Ledger, Products)
   },
 
   syncInvoices: async () => {
-    const pendingInvoices = InvoiceRepository.getPendingSync();
-    
+    let pendingInvoices: Awaited<ReturnType<typeof InvoiceRepository.getAll>> = [];
+
+    try {
+      pendingInvoices = await InvoiceRepository.getPendingSync();
+    } catch (e) {
+      console.warn('Could not fetch pending sync invoices:', e);
+      return;
+    }
+
     for (const invoice of pendingInvoices) {
       try {
-        // Map local Invoice to backend OrderRequest
         const orderRequest = {
           userId: invoice.userId,
-          paymentMode: 'CASH', // Default
-          paidAmount: invoice.paidAmount,
-          discount: invoice.discount,
-          status: 'PENDING',
-          items: invoice.orderItems.map((item) => ({
+          paymentMode: invoice.paymentMethod || 'CASH',
+          paidAmount: invoice.paidAmount || 0,
+          discount: invoice.discount || 0,
+          status: invoice.status,
+          items: invoice.items.map((item: any) => ({
             productId: item.productId,
             quantity: item.quantity,
           })),
         };
 
         await ApiClient.post('/api/orders', orderRequest);
-        InvoiceRepository.markAsSynced(invoice.id);
-        console.log(`Order ${invoice.id} synced successfully`);
+        await InvoiceRepository.markAsSynced(invoice.id);
+        console.log(`Invoice ${invoice.id} synced successfully`);
       } catch (error) {
-        console.error(`Failed to sync order ${invoice.id}`, error);
+        // Log but don't rethrow — allow other invoices to keep syncing
+        console.warn(`Failed to sync invoice ${invoice.id}:`, error);
       }
     }
   },
 };
-

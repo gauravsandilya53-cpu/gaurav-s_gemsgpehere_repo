@@ -5,6 +5,7 @@
  */
 import * as SecureStore from 'expo-secure-store';
 import { StorageService } from '../storage/mmkv';
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 
 // Pointing to Android Emulator's host machine (Local Backend)
 const BASE_URL = 'http://10.0.2.2:8080';

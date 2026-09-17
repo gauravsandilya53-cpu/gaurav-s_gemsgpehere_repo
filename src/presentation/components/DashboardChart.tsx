@@ -1,4 +1,4 @@
-﻿/**
+/**
  * © GemSphere Technologies Private Limited. All rights reserved.
  * This code is the intellectual property of GemSphere Technologies Private Limited.
  * Unauthorized copying, distribution, or usage is strictly prohibited.
@@ -6,7 +6,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import Svg, { Rect, G, Text as SvgText } from 'react-native-svg';
-import { Theme } from '../core/theme';
+import { Theme } from '../../core/theme';
 
 interface ChartData {
   month: string;

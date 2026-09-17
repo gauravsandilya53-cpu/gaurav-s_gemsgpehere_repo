@@ -1,4 +1,4 @@
-﻿/**
+/**
  * © GemSphere Technologies Private Limited. All rights reserved.
  * This code is the intellectual property of GemSphere Technologies Private Limited.
  * Unauthorized copying, distribution, or usage is strictly prohibited.
@@ -10,11 +10,11 @@ export const InvoiceRepository = {
   save: async (invoice: Invoice): Promise<void> => {
     try {
       // Use a transaction for atomicity
-      DatabaseService.execute('BEGIN TRANSACTION');
+      await DatabaseService.execute('BEGIN TRANSACTION');
 
-      DatabaseService.execute(
-        `INSERT INTO invoices (id, number, customer_id, sub_total, total_tax, discount, total_amount, currency, status, synced) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      await DatabaseService.execute(
+        `INSERT OR REPLACE INTO invoices (id, number, customer_id, sub_total, total_tax, discount, total_amount, currency, status, synced, created_at, payment_method, paid_amount) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           invoice.id,
           invoice.number,
@@ -26,13 +26,19 @@ export const InvoiceRepository = {
           invoice.currency,
           invoice.status,
           invoice.synced ? 1 : 0,
+          invoice.createdAt || new Date().toISOString(),
+          invoice.paymentMethod || null,
+          invoice.paidAmount || 0,
         ]
       );
 
+      // Clean up existing items for this invoice (in case of draft update)
+      await DatabaseService.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [invoice.id]);
+
       for (const item of invoice.items) {
-        DatabaseService.execute(
+        await DatabaseService.execute(
           `INSERT INTO invoice_items (invoice_id, product_id, name, quantity, price, tax_rate, tax_amount, total) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             invoice.id,
             item.productId,
@@ -46,21 +52,48 @@ export const InvoiceRepository = {
         );
       }
 
-      DatabaseService.execute('COMMIT');
+      await DatabaseService.execute('COMMIT');
     } catch (error) {
-      DatabaseService.execute('ROLLBACK');
+      try {
+        await DatabaseService.execute('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('Rollback failed', rollbackError);
+      }
       throw error;
     }
   },
 
-  getAll: (): Invoice[] => {
-    const invoices = DatabaseService.getAll<any>('SELECT * FROM invoices ORDER BY created_at DESC');
+  // Alias for compatibility
+  saveInvoice: async (invoice: Invoice): Promise<void> => {
+    return InvoiceRepository.save(invoice);
+  },
+
+  getAll: async (): Promise<Invoice[]> => {
+    const invoices = await DatabaseService.getAll<any>(
+      `SELECT invoices.*, contacts.name AS customer_name 
+       FROM invoices 
+       LEFT JOIN contacts ON invoices.customer_id = contacts.id 
+       ORDER BY invoices.created_at DESC`
+    );
     
-    return invoices.map((inv) => {
-      const items = DatabaseService.getAll<any>('SELECT * FROM invoice_items WHERE invoice_id = ?', [inv.id]);
-      return {
-        ...inv,
+    const result = [];
+    for (const inv of invoices) {
+      const items = await DatabaseService.getAll<any>('SELECT * FROM invoice_items WHERE invoice_id = ?', [inv.id]);
+      result.push({
+        id: inv.id,
+        number: inv.number,
+        customerId: inv.customer_id,
+        customerName: inv.customer_name || 'Walk-in Customer',
+        subTotal: inv.sub_total,
+        totalTax: inv.total_tax,
+        discount: inv.discount,
+        totalAmount: inv.total_amount,
+        currency: inv.currency,
+        status: inv.status,
         synced: inv.synced === 1,
+        createdAt: inv.created_at,
+        paymentMethod: inv.payment_method,
+        paidAmount: inv.paid_amount,
         items: items.map((item) => ({
           productId: item.product_id,
           name: item.name,
@@ -68,18 +101,55 @@ export const InvoiceRepository = {
           price: item.price,
           taxRate: item.tax_rate,
           taxAmount: item.tax_amount,
-          total: item.total,
+          // `item_total` is used on web (AlaSQL renames `total` to avoid reserved keyword conflict)
+          total: item.item_total ?? item.total,
         })),
-      } as Invoice;
-    });
+      } as Invoice);
+    }
+    return result;
   },
 
-  getPendingSync: (): Invoice[] => {
-    return InvoiceRepository.getAll().filter((inv) => !inv.synced);
+  // Alias for compatibility
+  getAllInvoices: async (): Promise<Invoice[]> => {
+    return InvoiceRepository.getAll();
   },
 
-  markAsSynced: (id: string) => {
-    DatabaseService.execute('UPDATE invoices SET synced = 1 WHERE id = ?', [id]);
+  getPendingSync: async (): Promise<Invoice[]> => {
+    const all = await InvoiceRepository.getAll();
+    return all.filter((inv) => !inv.synced);
+  },
+
+  markAsSynced: async (id: string) => {
+    await DatabaseService.execute('UPDATE invoices SET synced = 1 WHERE id = ?', [id]);
+  },
+
+  checkInvoiceNumberExists: async (number: string, excludeId?: string): Promise<boolean> => {
+    let query = 'SELECT COUNT(*) as count FROM invoices WHERE number = ?';
+    const params = [number];
+    if (excludeId) {
+      query += ' AND id != ?';
+      params.push(excludeId);
+    }
+    const row = await DatabaseService.getFirst<{ count: number }>(query, params);
+    return (row?.count || 0) > 0;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    try {
+      await DatabaseService.execute('BEGIN TRANSACTION');
+      // Delete associated items
+      await DatabaseService.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [id]);
+      // Delete the invoice itself
+      await DatabaseService.execute('DELETE FROM invoices WHERE id = ?', [id]);
+      // Also delete any ledger entries related to this invoice
+      await DatabaseService.execute('DELETE FROM ledger WHERE invoice_id = ?', [id]);
+      await DatabaseService.execute('COMMIT');
+    } catch (error) {
+      try {
+        await DatabaseService.execute('ROLLBACK');
+      } catch (e) {}
+      throw error;
+    }
   },
 };
 

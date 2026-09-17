@@ -39,3 +39,42 @@ export interface Order {
   status: string;
   createdAt: string;
 }
+
+export interface TaxRule {
+  id: string;
+  name: string;
+  rate: number;
+}
+
+export interface InvoiceItem {
+  productId: string;
+  name: string;
+  quantity: number;
+  price: number;
+  taxRate: number;
+  taxAmount: number;
+  total: number;
+}
+
+export interface Invoice {
+  id: string;
+  number: string;
+  customerId: string;
+  customerName?: string;
+  billingAddress?: string;
+  customerGST?: string;
+  dueDate?: string;
+  items: InvoiceItem[];
+  subTotal: number;
+  totalTax: number;
+  discount: number;
+  totalAmount: number;
+  currency: string;
+  status: 'DRAFT' | 'PENDING' | 'PAID' | 'CANCELLED';
+  createdAt: string;
+  synced: boolean;
+  userId?: string;
+  paidAmount?: number;
+  paymentMethod?: string;
+  orderItems?: any[];
+}

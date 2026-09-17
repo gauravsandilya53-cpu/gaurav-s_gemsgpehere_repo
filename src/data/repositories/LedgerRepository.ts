@@ -1,4 +1,4 @@
-﻿/**
+/**
  * © GemSphere Technologies Private Limited. All rights reserved.
  * This code is the intellectual property of GemSphere Technologies Private Limited.
  * Unauthorized copying, distribution, or usage is strictly prohibited.
@@ -8,9 +8,9 @@ import { LedgerEntry, ProfitLossSummary } from '../../domain/entities/accounting
 
 export const LedgerRepository = {
   addEntry: async (entry: LedgerEntry): Promise<void> => {
-    DatabaseService.execute(
-      `INSERT INTO ledger (id, type, category, amount, currency, description, invoice_id, contact_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    await DatabaseService.execute(
+      `INSERT INTO ledger (id, type, category, amount, currency, description, invoice_id, contact_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         entry.id,
         entry.type,
@@ -20,12 +20,13 @@ export const LedgerRepository = {
         entry.description,
         entry.invoiceId || null,
         entry.contactId || null,
+        entry.createdAt || new Date().toISOString(),
       ]
     );
   },
 
-  getAll: (): LedgerEntry[] => {
-    const rows = DatabaseService.getAll<any>('SELECT * FROM ledger ORDER BY created_at DESC');
+  getAll: async (): Promise<LedgerEntry[]> => {
+    const rows = await DatabaseService.getAll<any>('SELECT * FROM ledger ORDER BY created_at DESC');
     return rows.map((row) => ({
       id: row.id,
       type: row.type,
@@ -39,8 +40,8 @@ export const LedgerRepository = {
     }));
   },
 
-  getProfitLoss: (currency: string): ProfitLossSummary => {
-    const rows = DatabaseService.getAll<any>(
+  getProfitLoss: async (currency: string): Promise<ProfitLossSummary> => {
+    const rows = await DatabaseService.getAll<any>(
       'SELECT type, SUM(amount) as total FROM ledger WHERE currency = ? GROUP BY type',
       [currency]
     );

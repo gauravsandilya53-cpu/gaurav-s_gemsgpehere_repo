@@ -1,11 +1,16 @@
 import * as SecureStore from 'expo-secure-store';
 import { StorageService } from '../../../core/storage/mmkv';
+import { create } from 'zustand';
 
 interface AuthUser {
   id: number;
   email: string;
   name: string;
   tenantId: string;
+  businessName?: string;
+  businessAddress?: string;
+  phone?: string;
+  gstin?: string;
 }
 
 interface AuthState {
@@ -15,12 +20,17 @@ interface AuthState {
   login: (token: string, user: AuthUser) => Promise<void>;
   logout: () => Promise<void>;
   setBiometricsEnabled: (enabled: boolean) => void;
+  currency: string;
+  setCurrency: (currency: string) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  isAuthenticated: !!StorageService.getString('user_token'),
+  isAuthenticated: false,
   user: null,
-  biometricsEnabled: StorageService.getBoolean('biometrics_enabled') || false,
+  biometricsEnabled: false,
+  // StorageService.getString is async — default to 'USD' and let the
+  // settings screen update it once the stored value is loaded.
+  currency: 'USD',
 
   login: async (token, user) => {
     await SecureStore.setItemAsync('auth_token', token);
@@ -39,6 +49,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   setBiometricsEnabled: (enabled: boolean) => {
     StorageService.set('biometrics_enabled', enabled);
     set({ biometricsEnabled: enabled });
+  },
+
+  setCurrency: (currency: string) => {
+    StorageService.set('currency', currency);
+    set({ currency });
   },
 }));
 

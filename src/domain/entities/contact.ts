@@ -7,7 +7,7 @@
 export type ContactType = 'CUSTOMER' | 'SUPPLIER';
 
 export interface Contact {
-  id: number;
+  id: string;
   tenantId: string;
   type: ContactType;
   name: string;
@@ -16,6 +16,10 @@ export interface Contact {
   phone: string;
   address: string;
   gstin?: string; // Align with Supplier schema
+  openingBalance?: number;
   currentBalance: number;
   currency?: string;
+  status?: 'ACTIVE' | 'INACTIVE';
+  createdAt?: string;
+  updatedAt?: string;
 }
