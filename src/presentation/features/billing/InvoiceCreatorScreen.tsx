@@ -2,11 +2,12 @@
  * © GemSphere Technologies Private Limited. All rights reserved.
  * InvoiceCreatorScreen — Mobile-first, beginner-friendly Zoho/Vyapar style workflow.
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, TouchableOpacity,
   Alert, TextInput, FlatList, KeyboardAvoidingView, Platform, ScrollView, Modal
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme/ThemeContext';
 import { Typography, Spacing, Radius } from '../../../core/theme';
@@ -81,26 +82,18 @@ export const InvoiceCreatorScreen = ({ navigation, route }: any) => {
   const [newCustName, setNewCustName] = useState('');
   const [newCustPhone, setNewCustPhone] = useState('');
 
-  // ─── INITIALIZATION ─────────────────────────────────────────────────────
-  useEffect(() => {
-    loadData();
-    if (!draftInvoice) {
-      generateNextInvoiceNumber();
-    }
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [prods, contacts] = await Promise.all([
         ProductRepository.getAllProducts(),
         ContactRepository.getAllContacts()
       ]);
       setAllProducts(prods);
-      const customerContacts = contacts.filter(c => c.type === 'CUSTOMER');
+      const customerContacts = contacts.filter(c => !c.type || c.type.toUpperCase() === 'CUSTOMER');
       setAllCustomers(customerContacts);
 
       // If draft invoice provided, match customer
-      if (draftInvoice) {
+      if (draftInvoice && !customer) {
         const found = customerContacts.find(c => c.id === draftInvoice.customerId);
         if (found) {
           setCustomer(found);
@@ -123,7 +116,21 @@ export const InvoiceCreatorScreen = ({ navigation, route }: any) => {
     } catch (error) {
       console.error('Failed to load DB in InvoiceCreatorScreen:', error);
     }
-  };
+  }, [draftInvoice, customer]);
+
+  // ─── INITIALIZATION & FOCUS ───────────────────────────────────────────────
+  useEffect(() => {
+    loadData();
+    if (!draftInvoice) {
+      generateNextInvoiceNumber();
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const generateNextInvoiceNumber = async () => {
     try {
@@ -272,6 +279,17 @@ export const InvoiceCreatorScreen = ({ navigation, route }: any) => {
   };
 
   // ─── QUICK ADD CUSTOMER ─────────────────────────────────────────────────
+  const handleOpenCustomerModal = async () => {
+    try {
+      const contacts = await ContactRepository.getAllContacts();
+      const customerContacts = contacts.filter(c => !c.type || c.type.toUpperCase() === 'CUSTOMER');
+      setAllCustomers(customerContacts);
+    } catch (e) {
+      console.error('Failed to load customers on modal open:', e);
+    }
+    setCustomerModalVisible(true);
+  };
+
   const handleQuickAddCustomer = async () => {
     if (!newCustName.trim()) return;
     try {
@@ -284,12 +302,15 @@ export const InvoiceCreatorScreen = ({ navigation, route }: any) => {
         address: '',
         type: 'CUSTOMER',
         status: 'ACTIVE',
+        openingBalance: 0,
         currentBalance: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      await ContactRepository.createContact(newContact);
-      setAllCustomers(prev => [...prev, newContact]);
+      await ContactRepository.save(newContact);
+      const contacts = await ContactRepository.getAllContacts();
+      const customerContacts = contacts.filter(c => !c.type || c.type.toUpperCase() === 'CUSTOMER');
+      setAllCustomers(customerContacts);
       setCustomer(newContact);
       setNewCustName('');
       setNewCustPhone('');
@@ -382,7 +403,7 @@ export const InvoiceCreatorScreen = ({ navigation, route }: any) => {
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity style={styles.btnOutline} onPress={() => setCustomerModalVisible(true)}>
+            <TouchableOpacity style={styles.btnOutline} onPress={handleOpenCustomerModal}>
               <Text style={[Typography.bodySemibold, { color: Palette.primary }]}>+ Select or Add Customer</Text>
             </TouchableOpacity>
           )}

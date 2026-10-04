@@ -69,6 +69,18 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onToggleSidebar }) => {
           <Ionicons name="notifications-outline" size={20} color={Palette.textSecondary} />
           <View style={styles.badge} />
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.wizardButton, { backgroundColor: Palette.primary }]}
+          onPress={() => {
+            useAuthStore.getState().resetOnboarding();
+          }}
+        >
+          <Ionicons name="sparkles" size={16} color="#FFF" style={{ marginRight: 4 }} />
+          <Text style={[Typography.captionMedium, { color: '#FFF', fontWeight: 'bold' }]}>
+            Setup Wizard
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={[styles.profileButton, { borderColor: Palette.border }]}>
           <View style={[styles.avatar, { backgroundColor: Palette.primary }]}>
             <Text style={styles.avatarText}>{user?.name?.charAt(0) || 'U'}</Text>
@@ -167,6 +179,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444',
     borderWidth: 1,
     borderColor: '#FFF',
+  },
+  wizardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    marginLeft: Spacing.xs,
   },
   profileButton: {
     flexDirection: 'row',

@@ -17,7 +17,7 @@ import { InvoiceStatusBadge } from '../../components/ui/Badge';
 import { TopHeader } from '../../components/ui/TopHeader';
 
 export const DashboardScreen = ({ navigation }: any) => {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { Palette } = theme;
   const { user, currency } = useAuthStore();
   const [windowWidth, setWindowWidth] = useState(Dimensions.get('window').width);
@@ -105,9 +105,49 @@ export const DashboardScreen = ({ navigation }: any) => {
             {renderQuickAction('add', 'New Invoice', Palette.primary, () => navigation.navigate('Orders', { screen: 'InvoiceCreator' }))}
             {renderQuickAction('cube', 'Add Product', Palette.success, () => navigation.navigate('Inventory'))}
             {!isMobile && renderQuickAction('wallet', 'Record Expense', Palette.warning, () => {})}
-            {!isMobile && renderQuickAction('person-add', 'Add Customer', Palette.secondary, () => navigation.navigate('Customers'))}
           </View>
         </View>
+
+        {/* Progressive Setup Banner */}
+        <GlassCard padding={Spacing.md} style={{ marginBottom: Spacing.lg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="checkmark-circle-outline" size={20} color={Palette.primary} style={{ marginRight: 6 }} />
+              <Text style={[Typography.bodySemibold, { color: Palette.text }]}>Business setup</Text>
+            </View>
+            <Text style={[Typography.captionMedium, { color: Palette.primary, fontWeight: 'bold' }]}>80% complete</Text>
+          </View>
+
+          <View style={{ height: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0', borderRadius: 3, marginBottom: 10, overflow: 'hidden' }}>
+            <View style={{ width: '80%', height: '100%', backgroundColor: Palette.primary, borderRadius: 3 }} />
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.xs }}>
+            {[
+              { label: '+ Add more products', screen: 'Inventory' },
+              { label: '+ Add customers', screen: 'Customers' },
+              { label: '+ Invite team', screen: 'Settings' },
+              { label: '+ Custom invoice logo', screen: 'Settings' },
+              { label: '+ Connect WhatsApp', screen: 'Settings' },
+            ].map((step, idx) => (
+              <TouchableOpacity
+                key={idx}
+                onPress={() => navigation.navigate(step.screen)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: Radius.full,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9',
+                  borderWidth: 1,
+                  borderColor: Palette.border,
+                }}
+              >
+                <Text style={[Typography.captionMedium, { color: Palette.text }]}>{step.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </GlassCard>
+
 
         {/* Row 1: KPI Cards */}
         <View style={[styles.row, { flexWrap: 'wrap' }]}>

@@ -4,6 +4,7 @@ import { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme/ThemeContext';
 import { Typography, Spacing, Radius } from '../../core/theme';
+import { useAuthStore } from '../features/auth/store';
 
 export const SidebarContent = (props: DrawerContentComponentProps) => {
   const { theme } = useTheme();
@@ -21,6 +22,7 @@ export const SidebarContent = (props: DrawerContentComponentProps) => {
     { name: 'Reports', icon: 'bar-chart', route: 'Reports' },
     { name: 'AI Insights', icon: 'sparkles', route: 'AIInsights' },
     { name: 'Settings', icon: 'settings', route: 'Settings' },
+    { name: 'Setup Wizard', icon: 'rocket', route: 'AdaptiveOnboarding' },
   ];
 
   return (
@@ -39,7 +41,13 @@ export const SidebarContent = (props: DrawerContentComponentProps) => {
                   styles.menuItem,
                   isActive && { backgroundColor: `${Palette.primary}15` },
                 ]}
-                onPress={() => navigation.navigate(item.route)}
+                onPress={() => {
+                  if (item.route === 'AdaptiveOnboarding') {
+                    useAuthStore.getState().resetOnboarding();
+                  } else {
+                    navigation.navigate(item.route);
+                  }
+                }}
               >
                 <Ionicons
                   name={(isActive ? item.icon : `${item.icon}-outline`) as any}

@@ -1,269 +1,216 @@
 /**
  * © GemSphere Technologies Private Limited. All rights reserved.
- * SettingsScreen — Premium settings with profile card and grouped rows.
+ * SettingsScreen.tsx — Responsive Business Settings & Configuration Center.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
+  useWindowDimensions,
   ScrollView,
-  Switch,
-  TouchableOpacity,
+  Animated,
 } from 'react-native';
-import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuthStore } from '../auth/store';
 import { useTheme } from '../../../core/theme/ThemeContext';
 import { Typography, Spacing, Radius } from '../../../core/theme';
 import { GradientHeader } from '../../components/ui/GradientHeader';
-import { GlassCard } from '../../components/ui/GlassCard';
-import { PremiumButton } from '../../components/ui/PremiumButton';
+import { useSettingsStore } from './settingsStore';
+import { SettingsNavSidebar } from './components/SettingsNavSidebar';
+import { SettingsMobileNav } from './components/SettingsMobileNav';
 
-interface SettingRowProps {
-  icon: keyof typeof Ionicons.glyphMap;
-  iconColor: string;
-  label: string;
-  value?: string;
-  isLast?: boolean;
-  right?: React.ReactNode;
-  onPress?: () => void;
-}
-
-const SettingRow: React.FC<SettingRowProps> = ({
-  icon,
-  iconColor,
-  label,
-  value,
-  isLast,
-  right,
-  onPress,
-}) => {
-  const { theme } = useTheme();
-  const { Palette } = theme;
-
-  return (
-    <TouchableOpacity
-      style={[
-        styles.settingRow,
-        !isLast && { borderBottomWidth: 1, borderBottomColor: Palette.divider },
-      ]}
-      onPress={onPress}
-      activeOpacity={onPress ? 0.7 : 1}
-      disabled={!onPress}
-    >
-      <View style={[styles.iconBox, { backgroundColor: `${iconColor}18` }]}>
-        <Ionicons name={icon} size={18} color={iconColor} />
-      </View>
-      <View style={{ flex: 1, marginHorizontal: Spacing.md }}>
-        <Text style={[Typography.bodySemibold, { color: Palette.text }]}>{label}</Text>
-        {value ? (
-          <Text style={[Typography.caption, { color: Palette.textMuted, marginTop: 1 }]}>
-            {value}
-          </Text>
-        ) : null}
-      </View>
-      {right ?? (
-        onPress ? (
-          <Ionicons name="chevron-forward" size={16} color={Palette.textMuted} />
-        ) : null
-      )}
-    </TouchableOpacity>
-  );
-};
+// Category components
+import { BusinessProfileCategory } from './components/BusinessProfileCategory';
+import { GstSettingsCategory } from './components/GstSettingsCategory';
+import { InvoicePreferencesCategory } from './components/InvoicePreferencesCategory';
+import { SalesPurchaseCategory } from './components/SalesPurchaseCategory';
+import { InventoryPreferencesCategory } from './components/InventoryPreferencesCategory';
+import { CustomersSuppliersCategory } from './components/CustomersSuppliersCategory';
+import { UsersRolesCategory } from './components/UsersRolesCategory';
+import { SecurityPrivacyCategory } from './components/SecurityPrivacyCategory';
+import { BackupDataCategory } from './components/BackupDataCategory';
+import { NotificationsCategory } from './components/NotificationsCategory';
+import { GeneralPreferencesCategory } from './components/GeneralPreferencesCategory';
+import { IntegrationsCategory } from './components/IntegrationsCategory';
+import { AccountingPreferencesCategory } from './components/AccountingPreferencesCategory';
+import { AboutSubscriptionCategory } from './components/AboutSubscriptionCategory';
 
 export const SettingsScreen = ({ navigation }: any) => {
-  const { t, i18n } = useTranslation();
-  const { theme, isDark, setMode } = useTheme();
-  const { Palette } = theme;
-  const { biometricsEnabled, setBiometricsEnabled, logout, user, currency, setCurrency } =
-    useAuthStore();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
 
-  const toggleLanguage = () => {
-    const nextLng = i18n.language === 'en' ? 'ar' : 'en';
-    i18n.changeLanguage(nextLng);
+  const { theme } = useTheme();
+  const { Palette } = theme;
+  const loadSettings = useSettingsStore((s) => s.loadSettings);
+
+  const [activeCategory, setActiveCategory] = useState('business-profile');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Animated opacity for toast
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    // Animate in
+    Animated.timing(toastOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+
+    // Clear any existing timer
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+
+    // Animate out after 2.8s
+    toastTimer.current = setTimeout(() => {
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => setToastMessage(null));
+    }, 2800);
   };
 
-  const initials = user?.email
-    ? user.email.substring(0, 2).toUpperCase()
-    : 'US';
+  // Reset scroll when category changes
+  const [categoryKey, setCategoryKey] = useState(0);
+  const handleSelectCategory = (id: string) => {
+    setActiveCategory(id);
+    setCategoryKey((k) => k + 1);
+  };
+
+  const renderActiveCategoryContent = () => {
+    switch (activeCategory) {
+      case 'business-profile':
+        return <BusinessProfileCategory onShowToast={showToast} />;
+      case 'gst-tax':
+        return <GstSettingsCategory onShowToast={showToast} />;
+      case 'accounting':
+        return <AccountingPreferencesCategory onShowToast={showToast} />;
+      case 'invoice-prefs':
+        return <InvoicePreferencesCategory onShowToast={showToast} />;
+      case 'sales-purchase':
+        return <SalesPurchaseCategory onShowToast={showToast} />;
+      case 'inventory-prefs':
+        return <InventoryPreferencesCategory onShowToast={showToast} />;
+      case 'crm-prefs':
+        return <CustomersSuppliersCategory onShowToast={showToast} />;
+      case 'users-roles':
+        return <UsersRolesCategory onShowToast={showToast} />;
+      case 'security-privacy':
+        return <SecurityPrivacyCategory onShowToast={showToast} />;
+      case 'backup-data':
+        return <BackupDataCategory onShowToast={showToast} />;
+      case 'integrations':
+        return <IntegrationsCategory onShowToast={showToast} />;
+      case 'notifications':
+        return <NotificationsCategory onShowToast={showToast} />;
+      case 'general':
+        return <GeneralPreferencesCategory onShowToast={showToast} />;
+      case 'about-sub':
+        return <AboutSubscriptionCategory onShowToast={showToast} />;
+      default:
+        return <BusinessProfileCategory onShowToast={showToast} />;
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: Palette.background }]}>
-      <GradientHeader title="Settings" subtitle="Manage your preferences" leftAction={null} />
+      <GradientHeader
+        title="Business Configuration Center"
+        subtitle="Manage your business profile, taxes, billing, team and preferences"
+        leftAction={null}
+      />
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Profile Card */}
-        <GlassCard padding={Spacing.lg} style={styles.profileCard}>
-          <View style={[styles.avatar, { backgroundColor: `${Palette.primary}20` }]}>
-            <Text style={[Typography.h3, { color: Palette.primary }]}>{initials}</Text>
-          </View>
-          <View style={{ flex: 1, marginLeft: Spacing.md }}>
-            <Text style={[Typography.h4, { color: Palette.text }]}>
-              {user?.email?.split('@')[0] || 'User'}
-            </Text>
-            <Text style={[Typography.caption, { color: Palette.textMuted, marginTop: 2 }]}>
-              {user?.email || '—'}
-            </Text>
-            <View style={[styles.roleBadge, { backgroundColor: `${Palette.primary}15` }]}>
-              <Text style={[Typography.caption, { color: Palette.primary, fontWeight: '700' }]}>
-                Admin
-              </Text>
-            </View>
-          </View>
-        </GlassCard>
+      {/* Responsive Layout Container */}
+      {isDesktop ? (
+        <View style={styles.desktopLayout}>
+          {/* Fixed sidebar — not scrollable with content */}
+          <SettingsNavSidebar
+            activeCategory={activeCategory}
+            onSelectCategory={handleSelectCategory}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
+          {/* Content area scrolls independently */}
+          <ScrollView
+            key={categoryKey}
+            style={styles.contentScroll}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {renderActiveCategoryContent()}
+          </ScrollView>
+        </View>
+      ) : (
+        <View style={styles.mobileLayout}>
+          <SettingsMobileNav
+            activeCategory={activeCategory}
+            onSelectCategory={handleSelectCategory}
+          />
+          <ScrollView
+            key={categoryKey}
+            style={styles.contentScroll}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {renderActiveCategoryContent()}
+          </ScrollView>
+        </View>
+      )}
 
-        {/* Preferences */}
-        <Text style={[styles.groupLabel, { color: Palette.textMuted }]}>PREFERENCES</Text>
-        <GlassCard padding={0} style={{ overflow: 'hidden' }}>
-          <SettingRow
-            icon="language-outline"
-            iconColor="#6366F1"
-            label="Language"
-            value={i18n.language === 'en' ? 'English' : 'العربية'}
-            right={
-              <TouchableOpacity
-                style={[styles.chipBtn, { borderColor: Palette.primary }]}
-                onPress={toggleLanguage}
-              >
-                <Text style={[Typography.caption, { color: Palette.primary, fontWeight: '700' }]}>
-                  Switch
-                </Text>
-              </TouchableOpacity>
-            }
-          />
-          <SettingRow
-            icon="cash-outline"
-            iconColor="#10B981"
-            label="Default Currency"
-            value={currency}
-            right={
-              <TouchableOpacity
-                style={[styles.chipBtn, { borderColor: Palette.primary }]}
-                onPress={() => setCurrency(currency === 'USD' ? 'INR' : 'USD')}
-              >
-                <Text style={[Typography.caption, { color: Palette.primary, fontWeight: '700' }]}>
-                  {currency === 'USD' ? '→ INR' : '→ USD'}
-                </Text>
-              </TouchableOpacity>
-            }
-          />
-          <SettingRow
-            icon={isDark ? 'moon' : 'sunny-outline'}
-            iconColor="#F59E0B"
-            label="Dark Mode"
-            isLast
-            right={
-              <Switch
-                value={isDark}
-                onValueChange={(val) => setMode(val ? 'dark' : 'light')}
-                trackColor={{ false: Palette.border, true: Palette.primary }}
-                thumbColor="#FFF"
-              />
-            }
-          />
-        </GlassCard>
-
-        {/* Security */}
-        <Text style={[styles.groupLabel, { color: Palette.textMuted }]}>SECURITY</Text>
-        <GlassCard padding={0} style={{ overflow: 'hidden' }}>
-          <SettingRow
-            icon="finger-print-outline"
-            iconColor="#EC4899"
-            label="Biometric Login"
-            value={biometricsEnabled ? 'Enabled' : 'Disabled'}
-            isLast
-            right={
-              <Switch
-                value={biometricsEnabled}
-                onValueChange={setBiometricsEnabled}
-                trackColor={{ false: Palette.border, true: Palette.primary }}
-                thumbColor="#FFF"
-              />
-            }
-          />
-        </GlassCard>
-
-        {/* About */}
-        <Text style={[styles.groupLabel, { color: Palette.textMuted }]}>ABOUT</Text>
-        <GlassCard padding={0} style={{ overflow: 'hidden', marginBottom: Spacing.xl }}>
-          <SettingRow
-            icon="information-circle-outline"
-            iconColor="#3B82F6"
-            label="Version"
-            value="1.0.0 (Build 1)"
-            isLast
-          />
-        </GlassCard>
-
-        {/* Logout */}
-        <PremiumButton
-          label="Sign Out"
-          variant="danger"
-          onPress={logout}
-          fullWidth
-          size="lg"
-          icon={<Ionicons name="log-out-outline" size={20} color="#FFF" />}
-          style={{ marginBottom: 120 }}
-        />
-      </ScrollView>
+      {/* Floating Toast — rendered last so it appears above all content */}
+      {toastMessage !== null && (
+        <Animated.View
+          style={[
+            styles.toastBanner,
+            { backgroundColor: Palette.primary, opacity: toastOpacity },
+          ]}
+          pointerEvents="none"
+        >
+          <Ionicons name="checkmark-circle" size={18} color="#FFF" style={{ marginRight: Spacing.xs }} />
+          <Text style={[Typography.bodySemibold, { color: '#FFF', flex: 1 }]}>{toastMessage}</Text>
+        </Animated.View>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scroll: {
-    padding: Spacing.lg,
+  container: {
+    flex: 1,
   },
-  profileCard: {
+  toastBanner: {
+    position: 'absolute',
+    bottom: 32,
+    right: 20,
+    left: 20,
+    zIndex: 9999,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  roleBadge: {
-    alignSelf: 'flex-start',
-    borderRadius: Radius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    marginTop: Spacing.xs,
-  },
-  groupLabel: {
-    ...Typography.caption,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    marginBottom: Spacing.sm,
-    marginLeft: Spacing.xs,
-    marginTop: Spacing.md,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    minHeight: 60,
+    borderRadius: Radius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 12,
   },
-  iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+  desktopLayout: {
+    flex: 1,
+    flexDirection: 'row',
   },
-  chipBtn: {
-    borderWidth: 1.5,
-    borderRadius: Radius.full,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+  mobileLayout: {
+    flex: 1,
+    flexDirection: 'column',
+  },
+  contentScroll: {
+    flex: 1,
   },
 });

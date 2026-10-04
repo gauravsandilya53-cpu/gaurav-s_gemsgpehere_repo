@@ -27,18 +27,18 @@ export const ContactRepository = {
   },
 
   getAllByType: async (type: ContactType): Promise<Contact[]> => {
-    const rows = await DatabaseService.getAll<any>('SELECT * FROM contacts WHERE type = ?', [type]);
+    const rows = await DatabaseService.getAll<any>('SELECT * FROM contacts WHERE UPPER(type) = UPPER(?)', [type]);
     return rows.map((row) => ({
       id: row.id,
-      tenantId: row.currency, // Mapping currency column to tenantId for now
-      type: row.type as ContactType,
+      tenantId: row.currency || 'default',
+      type: (row.type ? (row.type.toUpperCase() as ContactType) : 'CUSTOMER'),
       name: row.name,
       email: row.email,
       phone: row.phone,
       address: row.address,
       gstin: row.tax_id,
-      openingBalance: row.opening_balance,
-      currentBalance: row.current_balance,
+      openingBalance: row.opening_balance || 0,
+      currentBalance: row.current_balance || 0,
     }));
   },
 
@@ -58,15 +58,15 @@ export const ContactRepository = {
     const rows = await DatabaseService.getAll<any>('SELECT * FROM contacts');
     return rows.map((row) => ({
       id: row.id,
-      tenantId: row.currency,
-      type: row.type as ContactType,
+      tenantId: row.currency || 'default',
+      type: (row.type ? (row.type.toUpperCase() as ContactType) : 'CUSTOMER'),
       name: row.name,
       email: row.email,
       phone: row.phone,
       address: row.address,
       gstin: row.tax_id,
-      openingBalance: row.opening_balance,
-      currentBalance: row.current_balance,
+      openingBalance: row.opening_balance || 0,
+      currentBalance: row.current_balance || 0,
     }));
   },
 

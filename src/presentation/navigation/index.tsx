@@ -1,17 +1,23 @@
 /**
- * Â© GemSphere Technologies Private Limited. All rights reserved.
- * This code is the intellectual property of GemSphere Technologies Private Limited.
- * Unauthorized copying, distribution, or usage is strictly prohibited.
+ * © GemSphere Technologies Private Limited. All rights reserved.
+ * Main Navigation Structure with Auth Navigation & Onboarding Guard.
  */
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { useAuthStore } from '../features/auth/store';
-import { Dimensions, View, Text } from 'react-native';
+import { Dimensions } from 'react-native';
 
-// Screens
+// Auth Screens
 import { LoginScreen } from '../features/auth/LoginScreen';
+import { CreateAccountScreen } from '../features/auth/CreateAccountScreen';
+import { ForgotPasswordScreen } from '../features/auth/ForgotPasswordScreen';
+import { ContactVerificationScreen } from '../features/auth/ContactVerificationScreen';
+import { AdaptiveOnboardingScreen } from '../features/auth/AdaptiveOnboardingScreen';
+import { BusinessSelectionScreen } from '../features/auth/BusinessSelectionScreen';
+
+// Main Application Screens
 import { DashboardScreen } from '../features/dashboard/DashboardScreen';
 import { InvoiceListScreen } from '../features/billing/InvoiceListScreen';
 import { InvoiceCreatorScreen } from '../features/billing/InvoiceCreatorScreen';
@@ -25,7 +31,8 @@ import { ContactListScreen } from '../features/crm/ContactListScreen';
 import { AIInsightsScreen } from '../features/ai-insights/AIInsightsScreen';
 import { SidebarContent } from './SidebarContent';
 
-const Stack = createStackNavigator();
+const RootStack = createStackNavigator();
+const AuthStack = createStackNavigator();
 const Drawer = createDrawerNavigator();
 const BillingStack = createStackNavigator();
 const InventoryStack = createStackNavigator();
@@ -45,12 +52,11 @@ const InventoryNavigator = () => (
   </InventoryStack.Navigator>
 );
 
-// Placeholders for missing screens
-
 const MainDrawer = () => {
   const isDesktop = Dimensions.get('window').width >= 768;
   return (
     <Drawer.Navigator
+      initialRouteName="Dashboard"
       drawerContent={(props) => <SidebarContent {...props} />}
       screenOptions={{
         headerShown: false,
@@ -58,8 +64,8 @@ const MainDrawer = () => {
         drawerStyle: isDesktop ? { width: 260, borderRightWidth: 0 } : { width: '80%' },
       }}
     >
-      <Drawer.Screen name="Orders" component={BillingNavigator} />
       <Drawer.Screen name="Dashboard" component={DashboardScreen} />
+      <Drawer.Screen name="Orders" component={BillingNavigator} />
       <Drawer.Screen name="Customers" component={ContactListScreen} />
       <Drawer.Screen name="Inventory" component={InventoryNavigator} />
       <Drawer.Screen name="Reports" component={ReportDashboardScreen} />
@@ -69,22 +75,39 @@ const MainDrawer = () => {
   );
 };
 
+const AuthNavigator = () => (
+  <AuthStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Login">
+    <AuthStack.Screen name="Login" component={LoginScreen} />
+    <AuthStack.Screen name="CreateAccount" component={CreateAccountScreen} />
+    <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+    <AuthStack.Screen name="ContactVerification" component={ContactVerificationScreen} />
+    <AuthStack.Screen name="AdaptiveOnboarding" component={AdaptiveOnboardingScreen} />
+    <AuthStack.Screen name="BusinessSelection" component={BusinessSelectionScreen} />
+  </AuthStack.Navigator>
+);
+
 export const AppNavigator = () => {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, hasCompletedOnboarding } = useAuthStore();
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {isAuthenticated ? (
-          <Stack.Screen name="Main" component={MainDrawer} />
+      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+        {!isAuthenticated ? (
+          <RootStack.Screen name="Auth" component={AuthNavigator} />
+        ) : !hasCompletedOnboarding ? (
+          <>
+            <RootStack.Screen name="AdaptiveOnboarding" component={AdaptiveOnboardingScreen} />
+            <RootStack.Screen name="Auth" component={AuthNavigator} />
+          </>
         ) : (
-          <Stack.Screen name="Auth" component={LoginScreen} />
+          <>
+            <RootStack.Screen name="Main" component={MainDrawer} />
+            <RootStack.Screen name="BusinessSelection" component={BusinessSelectionScreen} />
+            <RootStack.Screen name="AdaptiveOnboarding" component={AdaptiveOnboardingScreen} />
+            <RootStack.Screen name="Auth" component={AuthNavigator} />
+          </>
         )}
-      </Stack.Navigator>
+      </RootStack.Navigator>
     </NavigationContainer>
   );
 };
-
-
-
-

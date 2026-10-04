@@ -33,7 +33,11 @@ export const DatabaseSeeder = {
       }
 
       // Seed Contacts (Customers & Suppliers)
-      const contacts: any[] = [];
+      const contacts = [
+        ['cust-001', 'CUSTOMER', 'Acme Corporation', 'billing@acme.com', '+1 555 0192', '100 Enterprise Way, Suite 4', '27AAACA12341Z5', 0, 0, 'default'],
+        ['cust-002', 'CUSTOMER', 'GlobalTech Solutions', 'accounts@globaltech.com', '+1 555 0148', '500 Tech Blvd', '27BBBCB56782Z6', 0, 0, 'default'],
+        ['cust-003', 'CUSTOMER', 'Apex Retailers', 'finance@apex.com', '+1 555 0173', '75 Commerce Street', '27CCCC391013Z7', 0, 0, 'default'],
+      ];
 
       for (const contact of contacts) {
         await DatabaseService.execute(
